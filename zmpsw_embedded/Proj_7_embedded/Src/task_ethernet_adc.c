@@ -21,6 +21,7 @@
 //czas oczekiwania na komendę po połączeniu klienta w sekundach
 #define COMMAND_READ_TIEMOUT 5
 
+
 //czas wykonywania komendy w ms, wstawić taki żeby ADC zdążyło wykonać cykl z nowymi ustawieniami i zwrócić ewentualne błędy
 #define COMMAND_EXECUTION_TIME 400
 
@@ -28,7 +29,7 @@ void StartTaskEthernet(void const * argument){
 
 	ADC_struct *ADC_data;
 	osEvent evt;
-	uint16_t voltage;
+	uint32_t *voltage;
 
 	ip_addr_t PC_IPADDR;
 	IP_ADDR4(&PC_IPADDR, 192, 168, 1, 5);	// adres IP komputera
@@ -43,20 +44,17 @@ void StartTaskEthernet(void const * argument){
 
 		evt = osMailGet(ADC_queue, osWaitForever);
 		if ((evt.status != osOK) && (evt.status != osEventMail)) {
-			//osMailFree(ADC_queue, ADC_data);
 			continue;
 		}
 		ADC_data = evt.value.p;
-		voltage = ADC_data->milivolts;
+		voltage = ADC_data->raw_Value;
 
-		udp_buffer = pbuf_alloc(PBUF_TRANSPORT, 2, PBUF_RAM);
+		udp_buffer = pbuf_alloc(PBUF_TRANSPORT, QUEUE_SIZE*sizeof(uint32_t), PBUF_RAM);
 		if (udp_buffer != NULL) {
-			memcpy(udp_buffer->payload, &voltage, 2);
+			memcpy(udp_buffer->payload, voltage, QUEUE_SIZE*sizeof(uint32_t));
 			udp_send(my_udp, udp_buffer);
 		}
 		pbuf_free(udp_buffer);
 		osMailFree(ADC_queue, ADC_data);
-		//osDelay(10);
-
 	}
 }

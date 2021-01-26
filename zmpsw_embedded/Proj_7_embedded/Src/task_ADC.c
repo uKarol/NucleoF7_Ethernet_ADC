@@ -12,7 +12,7 @@
 #include "cmsis_os.h"
 #include "tim.h"
 
-
+uint32_t ADC_BUFFER[ADC_BUFFER_SIZE];
 ADC_state state[ADC_CHANNEL_NUM];	// aktualny stan kanałów ADC
 volatile uint16_t samples_processed;
 
@@ -67,20 +67,16 @@ void StartTaskADC(void const * argument)
 		  switch (cfg->cmd) {
 		  case ADC_START: // continouos mode
 			  ch = cfg->val;
-			  HAL_ADC_Start_IT(GetHandleADC(0));
-			  HAL_TIM_Base_Start_IT(&htim8);
+			  HAL_ADC_Start_DMA(&hadc1, ADC_BUFFER, ADC_BUFFER_SIZE*2);
 			  state[ch] = ADC_STARTED;
 			  break;
 		  case ADC_STOP: // stop continuous mode
 			  ch = cfg->val;
-			  HAL_ADC_Stop_IT(GetHandleADC(0));
-			  HAL_TIM_Base_Stop_IT(&htim8);
+			  HAL_ADC_Stop_DMA(&hadc1);
 			  state[ch] = ADC_STOPPED;
 			  break;
 		  case ADC_RESET:
 			  ch = cfg->val;
-			  //HAL_ADC_Stop_DMA(GetHandleADC(ch));
-			  //HAL_ADC_Start_DMA(GetHandleADC(ch), ADC_BUFFER, ADC_BUFFER_SIZE);
 			  state[ch] = ADC_STARTED;
 			  break;
 		  case ADC_SET_PCLK:
@@ -91,8 +87,6 @@ void StartTaskADC(void const * argument)
 			  break;
 		  case ADC_GET_SAMPLES:
 			  state[0] = ADC_SIGLE_MODE;
-			  HAL_ADC_Start_IT(GetHandleADC(0));
-			  HAL_TIM_Base_Start_IT(&htim8);
 			  required_samples = cfg->val;
 			  samples_processed = 0;
 			  break;
@@ -103,21 +97,24 @@ void StartTaskADC(void const * argument)
 	  }
   }
 }
-
-void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef *hadc){
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc){
 	ADC_struct *mptr;
-	if( state[0] == ADC_SIGLE_MODE){
-		samples_processed++;
-		if(required_samples == samples_processed){
-			  HAL_ADC_Stop_IT(GetHandleADC(0));
-			  HAL_TIM_Base_Stop_IT(&htim8);
-		}
-	}
 	mptr = osMailAlloc(ADC_queue, osWaitForever);							// alokacja pamieci
 	if(mptr != NULL){
-		mptr->raw_Value = ADC1->DR;										// zaladowanie wartosci odczytanej z ADC
-		mptr->milivolts = (uint16_t)((ADC1->DR) * ADC_VREF / ADC_RES);
+		memcpy(mptr->raw_Value, ADC_BUFFER, QUEUE_SIZE*sizeof(uint16_t));									// zaladowanie wartosci odczytanej z ADC
+		mptr->milivolts = 0;
 		osMailPut(ADC_queue, mptr);
 	}
 }
+
+void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef *hadc){
+	ADC_struct *mptr;
+	mptr = osMailAlloc(ADC_queue, osWaitForever);							// alokacja pamieci
+	if(mptr != NULL){
+		memcpy(mptr->raw_Value, ADC_BUFFER+100, QUEUE_SIZE*sizeof(uint32_t));									// zaladowanie wartosci odczytanej z ADC
+		mptr->milivolts = 0;
+		osMailPut(ADC_queue, mptr);
+	}
+}
+
 

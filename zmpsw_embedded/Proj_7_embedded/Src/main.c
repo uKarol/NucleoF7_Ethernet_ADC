@@ -22,6 +22,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "adc.h"
+#include "dma.h"
 #include "lwip.h"
 #include "tim.h"
 #include "usart.h"
@@ -93,6 +94,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();

@@ -21,8 +21,9 @@
 #define ADC_CH2 1
 #define ADC_CH3 2
 
+#define QUEUE_SIZE 20
 typedef struct {                                 // Mail object structure
-	uint16_t raw_Value;
+	uint32_t raw_Value[QUEUE_SIZE];
     uint16_t milivolts;                          // A counter value
 } ADC_struct;
 
